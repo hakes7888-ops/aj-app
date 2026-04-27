@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="AJ" />
+  <meta name="theme-color" content="#FAF6F0" />
+  <title>AJ — 단가 계산기</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --wood-dark: #5C3D2E;
+      --wood-mid: #8B5E3C;
+      --wood-light: #C4956A;
+      --beige-dark: #D4C5B0;
+      --beige-mid: #EDE0CC;
+      --beige-light: #F7F1E8;
+      --beige-softer: #FAF6F0;
+      --text-main: #2E1F0F;
+      --text-sub: #7A5C42;
+      --text-hint: #B09070;
+      --border: rgba(92,61,46,0.15);
+      --border-mid: rgba(92,61,46,0.25);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      height: 100%; width: 100%;
+      background: var(--beige-softer);
+      font-family: 'Noto Sans KR', sans-serif;
+      color: var(--text-main);
+      overflow: hidden;
+    }
+    .app {
+      max-width: 480px;
+      margin: 0 auto;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--beige-softer);
+      position: relative;
+    }
+
+    /* 상단바 */
+    .top-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 52px 20px 14px;
+      border-bottom: 0.5px solid var(--border);
+      background: var(--beige-softer);
+      flex-shrink: 0;
+    }
+    .top-bar h1 { font-size: 26px; font-weight: 700; color: var(--wood-dark); letter-spacing: -1px; }
+    .top-bar span {
+      font-size: 11px; color: var(--text-hint);
+      background: var(--beige-mid); padding: 4px 10px; border-radius: 99px;
+    }
+
+    /* 탭바 */
+    .tab-bar {
+      display: flex; border-bottom: 0.5px solid var(--border);
+      background: var(--beige-light); flex-shrink: 0;
+    }
+    .tab {
+      flex: 1; padding: 12px 0; text-align: center;
+      font-size: 13px; font-weight: 500; color: var(--text-hint);
+      cursor: pointer; border-bottom: 2px solid transparent;
+      transition: color 0.2s;
+    }
+    .tab.active { color: var(--wood-dark); border-bottom-color: var(--wood-mid); }
+
+    /* 스크린 */
+    .screen { display: none; flex: 1; overflow-y: auto; padding: 16px 18px; padding-bottom: calc(16px + var(--safe-bottom)); }
+    .screen.active { display: block; }
+
+    .section-title {
+      font-size: 10px; color: var(--text-hint);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 8px; margin-top: 16px;
+    }
+    .section-title:first-child { margin-top: 0; }
+
+    /* 사진 */
+    .photo-upload-area {
+      width: 100%; height: 160px; border-radius: 14px;
+      border: 0.5px dashed var(--border-mid);
+      background: var(--beige-light);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      cursor: pointer; overflow: hidden; position: relative;
+    }
+    .photo-upload-area img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-overlay {
+      position: absolute; inset: 0; background: rgba(46,31,15,0.35);
+      display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s;
+    }
+    .photo-upload-area:active .photo-overlay { opacity: 1; }
+    .photo-overlay span { color: #FAF6F0; font-size: 13px; font-weight: 500; }
+    .photo-placeholder-icon { font-size: 28px; margin-bottom: 8px; }
+    .photo-placeholder-text { font-size: 13px; color: var(--text-hint); }
+    .photo-placeholder-sub { font-size: 11px; color: var(--text-hint); margin-top: 3px; opacity: 0.7; }
+    input[type="file"] { display: none; }
+    .remove-photo-btn {
+      position: absolute; top: 10px; right: 10px;
+      background: rgba(46,31,15,0.6); border: none; color: #FAF6F0;
+      border-radius: 99px; font-size: 12px; padding: 4px 10px; cursor: pointer; z-index: 2;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+
+    /* 입력 */
+    .input-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+    .input-row label { font-size: 13px; color: var(--text-sub); width: 72px; flex-shrink: 0; }
+    .input-row input, .input-row select {
+      flex: 1; font-size: 14px;
+      border: 0.5px solid var(--border-mid); border-radius: 10px;
+      padding: 10px 12px; background: var(--beige-light); color: var(--text-main);
+      font-family: 'Noto Sans KR', sans-serif;
+      appearance: none; -webkit-appearance: none;
+    }
+    .input-row .unit { font-size: 12px; color: var(--text-hint); width: 28px; }
+
+    /* 재료 카드 */
+    .ing-card {
+      background: var(--beige-light); border: 0.5px solid var(--border);
+      border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; position: relative;
+    }
+    .ing-card-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .ing-card-row:last-child { margin-bottom: 0; }
+    .ing-label { font-size: 11px; color: var(--text-hint); width: 46px; flex-shrink: 0; }
+    .ing-input {
+      flex: 1; font-size: 13px;
+      border: 0.5px solid var(--border-mid); border-radius: 8px;
+      padding: 7px 10px; background: var(--beige-softer); color: var(--text-main);
+      min-width: 0; font-family: 'Noto Sans KR', sans-serif;
+    }
+    .ing-select {
+      font-size: 13px; border: 0.5px solid var(--border-mid); border-radius: 8px;
+      padding: 7px 6px; background: var(--beige-softer); color: var(--text-main);
+      width: 62px; flex-shrink: 0; font-family: 'Noto Sans KR', sans-serif;
+      appearance: none; -webkit-appearance: none; text-align: center;
+    }
+    .ing-cost-tag {
+      font-size: 11px; color: var(--wood-mid); font-weight: 500;
+      background: var(--beige-mid); border-radius: 99px;
+      padding: 3px 9px; white-space: nowrap; flex-shrink: 0;
+    }
+    .ing-del-btn {
+      position: absolute; top: 10px; right: 12px;
+      background: none; border: none; color: var(--text-hint);
+      font-size: 18px; cursor: pointer; line-height: 1;
+    }
+    .ing-price-label { font-size: 10px; color: var(--text-hint); white-space: nowrap; flex-shrink: 0; }
+
+    .add-ing-btn {
+      width: 100%; padding: 11px;
+      border: 0.5px dashed var(--border-mid); border-radius: 10px;
+      background: transparent; font-size: 13px; color: var(--text-sub);
+      cursor: pointer; margin-top: 4px;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .add-ing-btn:active { background: var(--beige-mid); }
+
+    /* 버튼 */
+    .btn-row-calc { display: flex; gap: 10px; margin-top: 14px; }
+    .calc-btn {
+      flex: 1; padding: 14px;
+      background: var(--wood-dark); border: none; border-radius: 12px;
+      color: #FAF6F0; font-size: 15px; font-weight: 500; cursor: pointer;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .calc-btn:active { opacity: 0.85; }
+    .save-btn {
+      padding: 14px 18px; background: var(--beige-mid);
+      border: 0.5px solid var(--border-mid); border-radius: 12px;
+      color: var(--wood-dark); font-size: 15px; font-weight: 500; cursor: pointer;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .save-btn:active { background: var(--beige-dark); }
+
+    /* 결과 카드 */
+    .result-card {
+      background: var(--beige-light); border: 0.5px solid var(--border);
+      border-radius: 14px; padding: 16px; margin-top: 16px;
+    }
+    .result-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 7px 0; border-bottom: 0.5px solid var(--border); font-size: 14px;
+    }
+    .result-row:last-child { border-bottom: none; }
+    .result-row .rlabel { color: var(--text-sub); }
+    .result-row .rvalue { font-weight: 500; color: var(--text-main); }
+    .result-row.highlight .rvalue { color: var(--wood-dark); font-size: 18px; }
+    .result-row.warn .rvalue { color: var(--wood-light); }
+
+    /* 레시피 카드 */
+    .recipe-card {
+      background: var(--beige-light); border: 0.5px solid var(--border);
+      border-radius: 14px; margin-bottom: 10px; cursor: pointer; overflow: hidden;
+    }
+    .recipe-card:active { opacity: 0.85; }
+    .recipe-thumb { width: 100%; height: 110px; object-fit: cover; display: block; }
+    .recipe-thumb-placeholder {
+      width: 100%; height: 110px; background: var(--beige-mid);
+      display: flex; align-items: center; justify-content: center; font-size: 28px;
+    }
+    .recipe-body { padding: 12px 14px 14px; }
+    .recipe-header { display: flex; justify-content: space-between; align-items: flex-start; }
+    .recipe-name { font-size: 15px; font-weight: 500; color: var(--wood-dark); }
+    .recipe-del { background: none; border: none; color: var(--text-hint); font-size: 18px; cursor: pointer; }
+    .recipe-meta { font-size: 12px; color: var(--text-hint); margin-top: 4px; }
+    .recipe-badges { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .badge { font-size: 11px; padding: 3px 10px; border-radius: 99px; }
+    .badge-wood { background: #DDD0C0; color: var(--wood-dark); }
+    .badge-beige { background: var(--beige-mid); color: var(--text-sub); }
+    .badge-light { background: #EAE0D0; color: var(--wood-mid); }
+
+    .empty-state { text-align: center; padding: 48px 0; color: var(--text-hint); font-size: 14px; line-height: 1.8; }
+
+    /* 요약 */
+    .stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin-bottom: 16px; }
+    .stat-card { background: var(--beige-light); border: 0.5px solid var(--border); border-radius: 12px; padding: 14px; }
+    .stat-label { font-size: 11px; color: var(--text-hint); margin-bottom: 5px; }
+    .stat-value { font-size: 22px; font-weight: 500; color: var(--wood-dark); }
+    .margin-bar-wrap { margin-bottom: 14px; }
+    .margin-bar-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
+    .margin-bar-name { color: var(--text-main); }
+    .margin-bar-pct { color: var(--wood-mid); font-weight: 500; }
+    .margin-track { height: 7px; background: var(--beige-mid); border-radius: 99px; overflow: hidden; }
+    .margin-fill { height: 100%; background: var(--wood-mid); border-radius: 99px; }
+    .margin-cost { font-size: 11px; color: var(--text-hint); margin-top: 3px; }
+
+    /* 하단 네비 */
+    .nav-bar {
+      display: flex; justify-content: space-around;
+      border-top: 0.5px solid var(--border);
+      padding: 10px 0;
+      padding-bottom: calc(10px + var(--safe-bottom));
+      background: var(--beige-light); flex-shrink: 0;
+    }
+    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 20px; }
+    .nav-icon { font-size: 20px; }
+    .nav-label { font-size: 10px; color: var(--text-hint); }
+    .nav-item.active .nav-label { color: var(--wood-dark); font-weight: 500; }
+
+    /* 토스트 */
+    .toast {
+      position: fixed; bottom: calc(80px + var(--safe-bottom)); left: 50%; transform: translateX(-50%);
+      background: var(--wood-dark); color: #FAF6F0;
+      font-size: 13px; padding: 9px 20px; border-radius: 99px;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; z-index: 100;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .toast.show { opacity: 1; }
+
+    /* PWA 설치 배너 */
+    .install-banner {
+      background: var(--beige-mid); border-bottom: 0.5px solid var(--border);
+      padding: 10px 16px; display: flex; align-items: center; gap:10px; flex-shrink: 0;
+    }
+    .install-banner-text { flex: 1; font-size: 12px; color: var(--text-sub); line-height: 1.5; }
+    .install-banner-text strong { color: var(--wood-dark); font-weight: 500; }
+    .install-banner-close {
+      background: none; border: none; color: var(--text-hint);
+      font-size: 18px; cursor: pointer; padding: 0 4px;
+    }
+    .install-steps {
+      background: var(--beige-light); border: 0.5px solid var(--border);
+      border-radius: 12px; padding: 14px; margin-top: 8px; display: none;
+    }
+    .install-steps.show { display: block; }
+    .install-step { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+    .install-step:last-child { margin-bottom: 0; }
+    .step-num {
+      width: 22px; height: 22px; border-radius: 50%; background: var(--wood-dark);
+      color: #FAF6F0; font-size: 11px; font-weight: 500;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .step-text { font-size: 13px; color: var(--text-sub); line-height: 1.5; }
+    .step-text strong { color: var(--text-main); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <!-- PWA 설치 안내 배너 -->
+  <div class="install-banner" id="install-banner">
+    <div style="font-size:22px;">📱</div>
+    <div class="install-banner-text">
+      <strong>홈 화면에 추가하면 앱처럼 사용할 수 있어요!</strong><br>
+      <span style="color:var(--wood-mid);cursor:pointer;text-decoration:underline;" onclick="toggleInstallSteps()">설치 방법 보기 ▾</span>
+    </div>
+    <button class="install-banner-close" onclick="document.getElementById('install-banner').style.display='none'">×</button>
+  </div>
+  <div class="install-steps" id="install-steps">
+    <div class="install-step">
+      <div class="step-num">1</div>
+      <div class="step-text">아래 Safari <strong>공유 버튼(□↑)</strong>을 탭하세요</div>
+    </div>
+    <div class="install-step">
+      <div class="step-num">2</div>
+      <div class="step-text"><strong>"홈 화면에 추가"</strong>를 선택하세요</div>
+    </div>
+    <div class="install-step">
+      <div class="step-num">3</div>
+      <div class="step-text"><strong>"추가"</strong>를 탭하면 앱 아이콘이 생겨요!</div>
+    </div>
+  </div>
+
+  <div class="top-bar">
+    <h1>AJ</h1>
+    <span>단가 계산기</span>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab active" onclick="switchTab(0)">단가 계산</div>
+    <div class="tab" onclick="switchTab(1)">레시피</div>
+    <div class="tab" onclick="switchTab(2)">요약</div>
+  </div>
+
+  <!-- TAB 0: 단가 계산 -->
+  <div class="screen active" id="tab0">
+    <div class="section-title">메뉴 사진</div>
+    <div class="photo-upload-area" id="photo-area" onclick="document.getElementById('photo-input').click()">
+      <div class="photo-placeholder-icon">📷</div>
+      <div class="photo-placeholder-text">사진을 추가하세요</div>
+      <div class="photo-placeholder-sub">탭하여 갤러리에서 선택</div>
+      <div class="photo-overlay"><span>사진 변경</span></div>
+    </div>
+    <input type="file" id="photo-input" accept="image/*" onchange="handlePhoto(event)" />
+
+    <div class="section-title">메뉴 정보</div>
+    <div class="input-row">
+      <label>메뉴 이름</label>
+      <input type="text" id="menu-name" placeholder="예: 떡볶이" />
+    </div>
+    <div class="input-row">
+      <label>인분 수</label>
+      <input type="number" id="servings" value="1" min="1" />
+      <span class="unit">인분</span>
+    </div>
+
+    <div class="section-title">재료 목록</div>
+    <div id="ing-list"></div>
+    <button class="add-ing-btn" onclick="addIngredient()">+ 재료 추가</button>
+
+    <div class="section-title">기타 비용</div>
+    <div class="input-row">
+      <label>포장재</label>
+      <input type="number" id="packaging" value="100" inputmode="numeric" />
+      <span class="unit">원</span>
+    </div>
+    <div class="input-row">
+      <label>인건비</label>
+      <input type="number" id="labor" value="500" inputmode="numeric" />
+      <span class="unit">원</span>
+    </div>
+    <div class="input-row">
+      <label>목표 마진</label>
+      <input type="number" id="margin" value="60" min="0" max="100" inputmode="numeric" />
+      <span class="unit">%</span>
+    </div>
+
+    <div class="btn-row-calc">
+      <button class="calc-btn" onclick="calculate()">계산하기</button>
+      <button class="save-btn" onclick="saveRecipe()">저장</button>
+    </div>
+
+    <div class="result-card" id="result-card" style="display:none;">
+      <div class="result-row"><span class="rlabel">재료 원가</span><span class="rvalue" id="r-ingredient">-</span></div>
+      <div class="result-row"><span class="rlabel">기타 비용</span><span class="rvalue" id="r-other">-</span></div>
+      <div class="result-row"><span class="rlabel">1인분 원가</span><span class="rvalue" id="r-cost">-</span></div>
+      <div class="result-row"><span class="rlabel">마진율</span><span class="rvalue" id="r-margin">-</span></div>
+      <div class="result-row highlight"><span class="rlabel" style="font-weight:500;">권장 판매가</span><span class="rvalue" id="r-price">-</span></div>
+      <div class="result-row warn"><span class="rlabel">손익분기 최소가</span><span class="rvalue" id="r-bep">-</span></div>
+    </div>
+    <div style="height:20px;"></div>
+  </div>
+
+  <!-- TAB 1: 레시피 -->
+  <div class="screen" id="tab1">
+    <div class="section-title">저장된 레시피</div>
+    <div id="recipe-list"></div>
+  </div>
+
+  <!-- TAB 2: 요약 -->
+  <div class="screen" id="tab2">
+    <div class="section-title">전체 요약</div>
+    <div class="stat-grid" id="stat-grid"></div>
+    <div class="section-title">마진율 비교</div>
+    <div id="margin-bars"></div>
+  </div>
+
+  <div class="nav-bar">
+    <div class="nav-item active" onclick="switchTab(0)"><span class="nav-icon">🧮</span><span class="nav-label">계산</span></div>
+    <div class="nav-item" onclick="switchTab(1)"><span class="nav-icon">📋</span><span class="nav-label">레시피</span></div>
+    <div class="nav-item" onclick="switchTab(2)"><span class="nav-icon">📊</span><span class="nav-label">요약</span></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const UNITS = ['g', 'kg', 'ml', 'L', '개', '봉', '팩', '컵', 'T', 't'];
+  const PER_UNIT_GROUP = ['개', '봉', '팩'];
+
+  let ingredients = [
+    { name: '떡', price: 2000, amount: 150, unit: 'g' },
+    { name: '고추장', price: 3000, amount: 30, unit: 'g' },
+    { name: '어묵', price: 1500, amount: 80, unit: 'g' },
+  ];
+  let currentPhoto = null;
+  let lastCalc = null;
+
+  // localStorage로 레시피 유지
+  function loadSaved() {
+    try { return JSON.parse(localStorage.getItem('aj_recipes') || '[]'); } catch { return []; }
+  }
+  function saveToDB(recipes) {
+    try { localStorage.setItem('aj_recipes', JSON.stringify(recipes)); } catch {}
+  }
+  let savedRecipes = loadSaved();
+  if (savedRecipes.length === 0) {
+    savedRecipes = [
+      { name: '떡볶이', photo: null, ingredients: [{ name: '떡', price: 2000, amount: 150, unit: 'g' }, { name: '고추장', price: 3000, amount: 30, unit: 'g' }, { name: '어묵', price: 1500, amount: 80, unit: 'g' }], servings: 1, packaging: 100, labor: 500, margin: 67, cost: 820, price: 2500, actualMargin: 67 },
+      { name: '핫도그', photo: null, ingredients: [{ name: '반죽', price: 3000, amount: 100, unit: 'g' }, { name: '소시지', price: 4000, amount: 1, unit: '개' }, { name: '튀김유', price: 2500, amount: 30, unit: 'ml' }], servings: 1, packaging: 80, labor: 300, margin: 68, cost: 650, price: 2000, actualMargin: 68 },
+    ];
+    saveToDB(savedRecipes);
+  }
+
+  function toggleInstallSteps() {
+    const el = document.getElementById('install-steps');
+    el.classList.toggle('show');
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  function handlePhoto(e) {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => { currentPhoto = ev.target.result; renderPhotoArea(); };
+    reader.readAsDataURL(file);
+  }
+
+  function renderPhotoArea() {
+    const area = document.getElementById('photo-area');
+    if (currentPhoto) {
+      area.innerHTML = `<img src="${currentPhoto}" style="width:100%;height:100%;object-fit:cover;" /><div class="photo-overlay"><span>사진 변경</span></div><button class="remove-photo-btn" onclick="removePhoto(event)">× 삭제</button>`;
+    } else {
+      area.innerHTML = `<div class="photo-placeholder-icon">📷</div><div class="photo-placeholder-text">사진을 추가하세요</div><div class="photo-placeholder-sub">탭하여 갤러리에서 선택</div><div class="photo-overlay"><span>사진 변경</span></div>`;
+    }
+  }
+
+  function removePhoto(e) {
+    e.stopPropagation(); currentPhoto = null;
+    document.getElementById('photo-input').value = '';
+    renderPhotoArea();
+  }
+
+  function calcIngCost(ing) {
+    if (!ing.price || !ing.amount) return 0;
+    if (PER_UNIT_GROUP.includes(ing.unit)) return ing.price * ing.amount;
+    const factorMap = { g: 1, kg: 1000, ml: 1, L: 1000, 컵: 200, T: 15, t: 5 };
+    const factor = factorMap[ing.unit] || 1;
+    return (ing.price / 1000) * (ing.amount * factor);
+  }
+
+  function unitPriceLabel(unit) {
+    return PER_UNIT_GROUP.includes(unit) ? '원/' + unit : '원/kg';
+  }
+
+  function renderIngredients() {
+    document.getElementById('ing-list').innerHTML = ingredients.map((ing, i) => {
+      const cost = calcIngCost(ing);
+      const unitOpts = UNITS.map(u => `<option value="${u}" ${u === ing.unit ? 'selected' : ''}>${u}</option>`).join('');
+      return `
+        <div class="ing-card">
+          <button class="ing-del-btn" onclick="removeIng(${i})">×</button>
+          <div class="ing-card-row">
+            <span class="ing-label">재료명</span>
+            <input class="ing-input" type="text" value="${ing.name}" placeholder="예: 떡" onchange="ingredients[${i}].name=this.value;" />
+          </div>
+          <div class="ing-card-row">
+            <span class="ing-label">단가</span>
+            <input class="ing-input" type="number" inputmode="numeric" value="${ing.price}" placeholder="0" onchange="ingredients[${i}].price=+this.value; rerenderCost(${i});" />
+            <span class="ing-price-label" id="price-label-${i}">${unitPriceLabel(ing.unit)}</span>
+          </div>
+          <div class="ing-card-row">
+            <span class="ing-label">사용량</span>
+            <input class="ing-input" type="number" inputmode="decimal" value="${ing.amount}" placeholder="0" style="width:70px;flex:none;" onchange="ingredients[${i}].amount=+this.value; rerenderCost(${i});" />
+            <select class="ing-select" onchange="ingredients[${i}].unit=this.value; renderIngredients();">${unitOpts}</select>
+            <span class="ing-cost-tag" id="cost-tag-${i}">${cost > 0 ? Math.round(cost).toLocaleString() + '원' : '-'}</span>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function rerenderCost(i) {
+    const tag = document.getElementById('cost-tag-' + i);
+    if (tag) { const c = calcIngCost(ingredients[i]); tag.textContent = c > 0 ? Math.round(c).toLocaleString() + '원' : '-'; }
+  }
+
+  function addIngredient() { ingredients.push({ name: '', price: 0, amount: 0, unit: 'g' }); renderIngredients(); }
+  function removeIng(i) { ingredients.splice(i, 1); renderIngredients(); }
+
+  function calculate() {
+    const servings = Math.max(1, +document.getElementById('servings').value || 1);
+    const packaging = +document.getElementById('packaging').value || 0;
+    const labor = +document.getElementById('labor').value || 0;
+    const marginPct = +document.getElementById('margin').value || 60;
+    const ingCost = ingredients.reduce((s, ing) => s + calcIngCost(ing), 0);
+    const totalCost = (ingCost + packaging + labor) / servings;
+    const bep = Math.ceil(totalCost);
+    const price = Math.ceil(totalCost / (1 - marginPct / 100) / 100) * 100;
+    const actualMargin = Math.round((1 - totalCost / price) * 100);
+    lastCalc = { cost: Math.round(totalCost), price, actualMargin };
+    document.getElementById('r-ingredient').textContent = Math.round(ingCost / servings).toLocaleString() + '원';
+    document.getElementById('r-other').textContent = Math.round((packaging + labor) / servings).toLocaleString() + '원';
+    document.getElementById('r-cost').textContent = Math.round(totalCost).toLocaleString() + '원';
+    document.getElementById('r-margin').textContent = actualMargin + '%';
+    document.getElementById('r-price').textContent = price.toLocaleString() + '원';
+    document.getElementById('r-bep').textContent = bep.toLocaleString() + '원';
+    document.getElementById('result-card').style.display = 'block';
+  }
+
+  function saveRecipe() {
+    const name = document.getElementById('menu-name').value.trim();
+    if (!name) { showToast('메뉴 이름을 입력하세요'); return; }
+    if (!lastCalc) calculate();
+    const calc = lastCalc || { cost: 0, price: 0, actualMargin: 0 };
+    const recipe = {
+      name, photo: currentPhoto,
+      ingredients: ingredients.map(x => ({ ...x })),
+      servings: +document.getElementById('servings').value || 1,
+      packaging: +document.getElementById('packaging').value || 0,
+      labor: +document.getElementById('labor').value || 0,
+      margin: +document.getElementById('margin').value || 60,
+      cost: calc.cost, price: calc.price, actualMargin: calc.actualMargin
+    };
+    const idx = savedRecipes.findIndex(r => r.name === name);
+    if (idx >= 0) { savedRecipes[idx] = recipe; showToast('레시피가 업데이트됐어요'); }
+    else { savedRecipes.push(recipe); showToast('레시피가 저장됐어요'); }
+    saveToDB(savedRecipes);
+    renderRecipes(); renderSummary();
+  }
+
+  function loadRecipe(i) {
+    const r = savedRecipes[i];
+    ingredients = r.ingredients.map(x => ({ ...x }));
+    currentPhoto = r.photo || null;
+    document.getElementById('menu-name').value = r.name;
+    document.getElementById('servings').value = r.servings;
+    document.getElementById('packaging').value = r.packaging;
+    document.getElementById('labor').value = r.labor;
+    document.getElementById('margin').value = r.margin;
+    renderIngredients(); renderPhotoArea();
+    switchTab(0); setTimeout(calculate, 50);
+  }
+
+  function deleteRecipe(i, e) {
+    e.stopPropagation(); savedRecipes.splice(i, 1);
+    saveToDB(savedRecipes);
+    renderRecipes(); renderSummary(); showToast('레시피가 삭제됐어요');
+  }
+
+  function renderRecipes() {
+    const el = document.getElementById('recipe-list');
+    if (savedRecipes.length === 0) { el.innerHTML = '<div class="empty-state">저장된 레시피가 없어요<br>계산 후 저장 버튼을 눌러보세요</div>'; return; }
+    el.innerHTML = savedRecipes.map((r, i) => `
+      <div class="recipe-card" onclick="loadRecipe(${i})">
+        ${r.photo ? `<img class="recipe-thumb" src="${r.photo}" />` : `<div class="recipe-thumb-placeholder">🍽️</div>`}
+        <div class="recipe-body">
+          <div class="recipe-header">
+            <div class="recipe-name">${r.name}</div>
+            <button class="recipe-del" onclick="deleteRecipe(${i}, event)">×</button>
+          </div>
+          <div class="recipe-meta">재료 ${r.ingredients.length}개 · ${r.servings}인분 기준</div>
+          <div class="recipe-badges">
+            <span class="badge badge-wood">원가 ${r.cost.toLocaleString()}원</span>
+            <span class="badge badge-beige">판매가 ${r.price.toLocaleString()}원</span>
+            <span class="badge badge-light">마진 ${r.actualMargin}%</span>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  function renderSummary() {
+    const grid = document.getElementById('stat-grid');
+    const bars = document.getElementById('margin-bars');
+    if (savedRecipes.length === 0) { grid.innerHTML = '<div class="empty-state" style="grid-column:span 2;">저장된 레시피가 없어요</div>'; bars.innerHTML = ''; return; }
+    const avgMargin = Math.round(savedRecipes.reduce((s, r) => s + r.actualMargin, 0) / savedRecipes.length);
+    const avgCost = Math.round(savedRecipes.reduce((s, r) => s + r.cost, 0) / savedRecipes.length);
+    const best = savedRecipes.reduce((a, b) => a.actualMargin > b.actualMargin ? a : b);
+    grid.innerHTML = `
+      <div class="stat-card"><div class="stat-label">총 메뉴 수</div><div class="stat-value">${savedRecipes.length}</div></div>
+      <div class="stat-card"><div class="stat-label">평균 마진율</div><div class="stat-value">${avgMargin}%</div></div>
+      <div class="stat-card"><div class="stat-label">최고 마진 메뉴</div><div class="stat-value" style="font-size:14px;padding-top:4px;">${best.name}</div></div>
+      <div class="stat-card"><div class="stat-label">평균 원가</div><div class="stat-value" style="font-size:17px;">${avgCost.toLocaleString()}원</div></div>`;
+    bars.innerHTML = [...savedRecipes].sort((a, b) => b.actualMargin - a.actualMargin).map(r => `
+      <div class="margin-bar-wrap">
+        <div class="margin-bar-label"><span class="margin-bar-name">${r.name}</span><span class="margin-bar-pct">${r.actualMargin}%</span></div>
+        <div class="margin-track"><div class="margin-fill" style="width:${r.actualMargin}%;"></div></div>
+        <div class="margin-cost">원가 ${r.cost.toLocaleString()}원 · 판매가 ${r.price.toLocaleString()}원</div>
+      </div>`).join('');
+  }
+
+  function switchTab(n) {
+    document.querySelectorAll('.tab').forEach((t, i) => t.className = 'tab' + (i === n ? ' active' : ''));
+    document.querySelectorAll('.screen').forEach((s, i) => s.className = 'screen' + (i === n ? ' active' : ''));
+    document.querySelectorAll('.nav-item').forEach((v, i) => v.className = 'nav-item' + (i === n ? ' active' : ''));
+    if (n === 1) renderRecipes();
+    if (n === 2) renderSummary();
+  }
+
+  renderIngredients(); renderRecipes();
+</script>
+</body>
+</html>
